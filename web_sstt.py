@@ -60,11 +60,11 @@ def procesar_error(cs, codigo):
     html = "<html><body><h1>Error " + str(codigo) + ": " + mensaje + "</h1> <img src =\"" + direccion_imagen + "\"></body></html>"
 
     respuesta = "HTTP/1.1 " + str(codigo) + " " + mensaje + "\r\n"
-    respuesta += "Date: " + fecha_formateada + "\r\n"
     respuesta += "Server: Nombre (Ubuntu)\r\n"
-    respuesta += "Connection: close\r\n"
-    respuesta += "Content-Length: " + len(html) + "\r\n"
     respuesta += "Content-Type: text/html; charset=utf-8\r\n"
+    respuesta += "Content-Length: " + len(html).encode() + "\r\n"
+    respuesta += "Date: " + fecha_formateada + "\r\n"
+    respuesta += "Connection: close\r\n"    
     respuesta += "\r\n"
     respuesta += html
 
@@ -166,12 +166,13 @@ def process_web_request(cs, webroot):
                                 fecha_formateada = fecha_actual.strftime('%Y-%m-%d %H:%M:%S') # El formato del loggin
                                 tipo_extension = filetypes[extension] # Extensión según el diccionario filetypes
                                 respuesta = "HTTP/1.1 200 OK\r\n"
-                                respuesta += "Date: " + fecha_formateada + "\r\n"
                                 respuesta += "Server: Nombre (Ubuntu)\r\n"
-                                respuesta += "Connection: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
-                                respuesta += "Set-Cookie: cookie_counter=" + str(contador_cookies) + "\r\n"
-                                respuesta += "Content-Length: " + str(tamano) + "\r\n"
                                 respuesta += "Content-Type: " + tipo_extension + "; charset=utf-8\r\n"
+                                respuesta += "Content-Length: " + str(tamano) + "\r\n"
+                                respuesta += "Date: " + fecha_formateada + "\r\n"
+                                respuesta += "Connection: Keep-Alive\r\n"
+                                respuesta += "Keep-alive: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
+                                respuesta += "Set-Cookie: cookie_counter=" + str(contador_cookies) + "; \r\n"
                                 respuesta += "\r\n"
                                 # * Leer y enviar el contenido del fichero a retornar en el cuerpo de la respuesta.
                                 enviar_mensaje(cs, respuesta)
