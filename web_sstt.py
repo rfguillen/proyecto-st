@@ -17,6 +17,8 @@ import logging      # Para imprimir logs
 BUFSIZE = 8192 # Tamaño máximo del buffer que se puede utilizar
 TIMEOUT_CONNECTION = 20 # Timout para la conexión persistente
 MAX_ACCESOS = 10
+CORREO_RAFAEL = "rafael.guilleng@um.es"
+CORREO_DANIEL = "daniel.f.a@um.es"
 
 # Extensiones admitidas (extension, name in HTTP)
 filetypes = {"gif":"image/gif", "jpg":"image/jpg", "jpeg":"image/jpeg", "png":"image/png", "htm":"text/htm", 
@@ -62,7 +64,7 @@ def procesar_error(cs, codigo):
     respuesta = "HTTP/1.1 " + str(codigo) + " " + mensaje + "\r\n"
     respuesta += "Server: Nombre (Ubuntu)\r\n"
     respuesta += "Content-Type: text/html; charset=utf-8\r\n"
-    respuesta += "Content-Length: " + len(html).encode() + "\r\n"
+    respuesta += "Content-Length: " + str(len(html.encode())) + "\r\n"
     respuesta += "Date: " + fecha_formateada + "\r\n"
     respuesta += "Connection: close\r\n"    
     respuesta += "\r\n"
@@ -97,6 +99,7 @@ def process_web_request(cs, webroot):
     er_linea1 = re.compile(r'(?P<metodo>GET|POST|[A-Z]+)\s+(?P<ruta>\/\S*)\s+(?P<version>HTTP\/\d\.\d)')
     er_cabecera = re.compile(r'(?P<header>.+):(?P<valor>.+)')
     er_getopost = re.compile(r'GET|POST')
+    er_correo = re.compile(r'correo=([^&]+)')
     # * Bucle para esperar hasta que lleguen datos en la red a través del socket cs con select()
     while True:
         rsublist, wsublist, xsublist = select.select([cs], [], [], TIMEOUT_CONNECTION)
@@ -110,6 +113,7 @@ def process_web_request(cs, webroot):
             mensaje = recibir_mensaje(cs)
             if not mensaje:
                 break # Para que el bucle se rompa cuando se cierra la conexion
+
             lineas = mensaje.split('\r\n') # Dividir el string 
             # * Analizar que la línea de solicitud y comprobar está bien formateada según HTTP 1.1
             m = er_linea1.fullmatch(lineas[0])
@@ -118,87 +122,145 @@ def process_web_request(cs, webroot):
                 # * Comprobar si la versión de HTTP es 1.1
                 if m.group('version') == "HTTP/1.1":
                     # * Comprobar si es un método GET o POST, si no devolver Error 405 "Method Not Allowed". 
+                    metodo = m.group('metodo')
                     if not er_getopost.fullmatch(m.group('metodo')):
                         procesar_error(cs, 405)
-                    else:
-                        # * Leer URL y eliminar parámetros si los hubiera
-                        url = m.group('ruta')
-                        if '?' in url:
-                            url = url.split('?')[0] # Los parametros vienen despues del ?
-                        # * Comprobar si el recurso solicitado es /, En ese caso el recurso es index.html
-                        if url == '/':
-                            url = "index.html"
-                        # * Construir la ruta absoluta del recurso (webroot + recurso solicitado)
-                        ruta_absoluta = webroot+url
-                        # * Comprobar que el recurso (fichero) existe, si no devolver Error 404 "Not found"
-                        if not os.path.isfile(ruta_absoluta):
-                            procesar_error(cs, 404)
-                        """ * Analizar las cabeceras. Imprimir cada cabecera y su valor. Si la cabecera es Cookie comprobar
-                             el valor de cookie_counter para ver si ha llegado a MAX_ACCESOS. """
-                        cabeceras = {} # Dicccionario para las cabeceras
-                        for linea in lineas[1:]:
-                            if linea == "":
-                                break # Hemos llegado al fin de cabeceras
-                            m_cabecera = er_cabecera.fullmatch(linea)
-                            if m_cabecera:
-                                nombre = m_cabecera.group('header')
-                                valor_cabecera = m_cabecera.group('valor')
-                                cabeceras[nombre] = valor_cabecera
-                        contador_cookies = process_cookies(cabeceras, cs)
-                        #   Si se ha llegado a MAX_ACCESOS devolver un Error "403 Forbidden".
-                        if contador_cookies > MAX_ACCESOS:
-                            procesar_error(cs, 403)
+                        continue
+
+                    cabeceras = {} # Dicccionario para las cabeceras
+                    for linea in lineas[1:]:
+                        if linea == "":
+                            break # Hemos llegado al fin de cabeceras
+                        m_cabecera = er_cabecera.fullmatch(linea)
+                        if m_cabecera:
+                            nombre = m_cabecera.group('header')
+                            valor_cabecera = m_cabecera.group('valor')
+                            cabeceras[nombre] = valor_cabecera
+                            print(f"{nombre}: {valor_cabecera}")
+
+                    # Verificar Host
+                    if 'Host' not in cabeceras:
+                        procesar_error(cs, 400)
+                        break # cerrar la conexión
+
+                    # Gestión del POS
+                    if metodo == 'POST':
+                        # Extraer el cuerpo
+                        partes_mensaje = mensaje.split('\r\n\r\n', 1)
+                        if len(partes_mensaje) > 1:
+                            cuerpo = partes_mensaje[1]
                         else:
-                            # * Obtener el tamaño del recurso en bytes.
-                            tamano = os.stat(ruta_absoluta).st_size
-                            # * Extraer extensión para obtener el tipo de archivo. Necesario para la cabecera Content-Type
-                            nombre_fichero = os.path.basename(ruta_absoluta)
-                            partes = nombre_fichero.split('.')
-                            if len(partes) > 1: # El fichero tiene un punto en el nombre
-                                extension = partes[-1] # La extensión es el úñtimo elemento de la lista
-                            else:
-                                extension = ""
-                            """ * Preparar respuesta con código 200. Construir una respuesta que incluya: la línea de respuesta y
-                            las cabeceras Date, Server, Connection, Set-Cookie (para la cookie cookie_counter),
-                            Content-Length y Content-Type. """
-                            if extension in filetypes: # Solo trata las extensiones válidas
-                                fecha_actual = datetime.now()
-                                fecha_formateada = fecha_actual.strftime('%Y-%m-%d %H:%M:%S') # El formato del loggin
-                                tipo_extension = filetypes[extension] # Extensión según el diccionario filetypes
-                                respuesta = "HTTP/1.1 200 OK\r\n"
-                                respuesta += "Server: Nombre (Ubuntu)\r\n"
-                                respuesta += "Content-Type: " + tipo_extension + "; charset=utf-8\r\n"
-                                respuesta += "Content-Length: " + str(tamano) + "\r\n"
-                                respuesta += "Date: " + fecha_formateada + "\r\n"
-                                respuesta += "Connection: Keep-Alive\r\n"
-                                respuesta += "Keep-alive: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
-                                respuesta += "Set-Cookie: cookie_counter=" + str(contador_cookies) + "; \r\n"
-                                respuesta += "\r\n"
-                                # * Leer y enviar el contenido del fichero a retornar en el cuerpo de la respuesta.
-                                enviar_mensaje(cs, respuesta)
-                                # * Se abre el fichero en modo lectura y modo binario
-                                f = open(ruta_absoluta, 'rb')
-                                if tamano%BUFSIZE != 0:                       
-                                    bloques_leer = tamano//BUFSIZE + 1
-                                else:
-                                    bloques_leer = tamano//BUFSIZE
-                                for bloque in range(bloques_leer):
-                                    # * Se lee el fichero en bloques de BUFSIZE bytes (8KB)
-                                    datos = f.read(BUFSIZE)
-                                    cs.send(datos) # No usamos enviar_mensaje ya que no queremos codificar los datos
-                                    # * Cuando ya no hay más información para leer, se corta el bucle                        
-                                f.close()
-                            else:
-                                # Error "Not Found"
-                                procesar_error(cs, 404)
+                            cuerpo = ""
+
+                        # Buscar el valor de "correo"
+                        m_correo = er_correo.search(cuerpo)
+                        if m_correo:
+                            correo = m_correo.group(1)
+                        else:
+                            correo = ""
+
+                        # Comprobar si es nuestro correo
+                        if correo == CORREO_RAFAEL or correo == CORREO_DANIEL:
+                            html_post = "<html><body><h1>El correo es correcto</h1></body></html>"
+                        else:
+                            html_post = "<html><body><h1>El correo es incorrecto</h1></body></html>"
+
+                        fecha_actual = datetime.now()
+                        fecha_formateada = fecha_actual.strftime('%Y-%m-%d %H:%M:%S') # El formato del loggin
+                        respuesta_post = "HTTP/1.1 200 OK \r\n"
+                        respuesta_post += "Server: Nombre (Ubuntu)\r\n" # TODO cambiar lo de nombre
+                        respuesta_post += "Content-Type: text/html; charset=utf-8\r\n"
+                        respuesta_post += "Content-Length: " + str(len(html_post.encode())) + "\r\n"
+                        respuesta_post += "Connection: Keep-Alive\r\n\r\n"
+                        respuesta_post += html_post
+
+                        enviar_mensaje(cs, respuesta_post)
+                        continue # para que no ejecute lo del get
+
+                    # Gestión del GET
+                    # * Leer URL y eliminar parámetros si los hubiera
+                    url = m.group('ruta')
+                    if '?' in url:
+                        url = url.split('?')[0] # Los parametros vienen despues del ?
+                    # * Comprobar si el recurso solicitado es /, En ese caso el recurso es index.html
+                    if url == '/':
+                        url = "index.html"
+
+                    # * Construir la ruta absoluta del recurso (webroot + recurso solicitado)
+                    ruta_absoluta = webroot + url
+
+                    # * Comprobar que el recurso (fichero) existe, si no devolver Error 404 "Not found"
+                    if not os.path.isfile(ruta_absoluta):
+                        procesar_error(cs, 404)
+                        continue # No procesar archivo inexistente
+
+                    """ * Analizar las cabeceras. Imprimir cada cabecera y su valor. Si la cabecera es Cookie comprobar
+                         el valor de cookie_counter para ver si ha llegado a MAX_ACCESOS. """
+                    contador_cookies = process_cookies(cabeceras, cs)
+                    #   Si se ha llegado a MAX_ACCESOS devolver un Error "403 Forbidden".
+                    if contador_cookies > MAX_ACCESOS:
+                        procesar_error(cs, 403)
+                        continue 
+            
+                    # * Obtener el tamaño del recurso en bytes.
+                    tamano = os.stat(ruta_absoluta).st_size
+
+                    # * Extraer extensión para obtener el tipo de archivo. Necesario para la cabecera Content-Type
+                    nombre_fichero = os.path.basename(ruta_absoluta)
+                    partes = nombre_fichero.split('.')
+                    if len(partes) > 1: # El fichero tiene un punto en el nombre
+                        extension = partes[-1] # La extensión es el úñtimo elemento de la lista
+                    else:
+                        extension = ""
+                    """ * Preparar respuesta con código 200. Construir una respuesta que incluya: la línea de respuesta y
+                    las cabeceras Date, Server, Connection, Set-Cookie (para la cookie cookie_counter),
+                    Content-Length y Content-Type. """
+                    if extension in filetypes: # Solo trata las extensiones válidas
+                        fecha_actual = datetime.now()
+                        fecha_formateada = fecha_actual.strftime('%Y-%m-%d %H:%M:%S') # El formato del loggin
+                        tipo_extension = filetypes[extension] # Extensión según el diccionario filetypes
+                        respuesta = "HTTP/1.1 200 OK\r\n"
+                        respuesta += "Server: Nombre (Ubuntu)\r\n"
+                        respuesta += "Content-Type: " + tipo_extension + "; charset=utf-8\r\n"
+                        respuesta += "Content-Length: " + str(tamano) + "\r\n"
+                        respuesta += "Date: " + fecha_formateada + "\r\n"
+                        respuesta += "Connection: Keep-Alive\r\n"
+                        respuesta += "Keep-Alive: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
+                        respuesta += "Set-Cookie: cookie_counter=" + str(contador_cookies) + "; Max-Age=30 \r\n"
+                        respuesta += "\r\n"
+                        
+                        # * Leer y enviar el contenido del fichero a retornar en el cuerpo de la respuesta.
+                        enviar_mensaje(cs, respuesta)
+
+                        # * Se abre el fichero en modo lectura y modo binario
+                        f = open(ruta_absoluta, 'rb')
+                        if tamano%BUFSIZE != 0:                       
+                            bloques_leer = tamano//BUFSIZE + 1
+                        else:
+                            bloques_leer = tamano//BUFSIZE
+
+                        for bloque in range(bloques_leer):
+                            # * Se lee el fichero en bloques de BUFSIZE bytes (8KB)
+                            datos = f.read(BUFSIZE)
+                            cs.send(datos) # No usamos enviar_mensaje ya que no queremos codificar los datos
+                            # * Cuando ya no hay más información para leer, se corta el bucle                        
+                        f.close()
+                    else:
+                        # Error "Not Found"
+                        procesar_error(cs, 404)
+                        continue
                 else:
                     # Error "HTTP Version Not Supported"
                     procesar_error(cs, 505)
+                    continue
             else:
                 # Error "Bad Request"
                 procesar_error(cs, 400)
+                continue
         # * Si es por timeout, se cierra el socket tras el período de persistencia.
         # * NOTA: Si hay algún error, enviar una respuesta de error con una pequeña página HTML que informe del error.
+    # Cerrar la conexión por timeout
+    cerrar_conexion(cs)
 
 
 def main():
@@ -238,6 +300,7 @@ def main():
             if pid == 0:
                 cerrar_conexion(server)
                 process_web_request(conn, args.webroot) 
+                sys.exit(0)
             # - Si es el proceso padre cerrar el socket que gestiona el hijo.
             else:
                 cerrar_conexion(conn)
