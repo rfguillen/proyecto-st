@@ -33,12 +33,12 @@ logger = logging.getLogger()
 """ Esta función envía datos (data) a través del socket cs
 Devuelve el número de bytes enviados. """
 def enviar_mensaje(cs, data):
-    return cs.send(data.encode())
+    return cs.send(data.encode('utf-8'))
 
 """ Esta función recibe datos a través del socket cs
 Leemos la información que nos llega. recv() devuelve un string con los datos. """
 def recibir_mensaje(cs):
-    return cs.recv(BUFSIZE).decode()
+    return cs.recv(BUFSIZE).decode('utf-8')
 
 # Esta función cierra una conexión activa.
 def cerrar_conexion(cs):
@@ -102,11 +102,12 @@ def process_web_request(cs, webroot):
     er_correo = re.compile(r'correo=([^&]+)')
     # * Bucle para esperar hasta que lleguen datos en la red a través del socket cs con select()
     while True:
-        rsublist, wsublist, xsublist = select.select([cs], [], [], TIMEOUT_CONNECTION)
         """ * Se comprueba si hay que cerrar la conexión por exceder TIMEOUT_CONNECTION segundos
         sin recibir ningún mensaje o hay datos. Se utiliza select.select """
+        rsublist, wsublist, xsublist = select.select([cs], [], [], TIMEOUT_CONNECTION)
         if not rsublist: # Si no hay leibles significa que saltó el timeout
             break
+
         # * Si no es por timeout y hay datos en el socket cs.
         else:
             # * Leer los datos con recv.
@@ -115,6 +116,7 @@ def process_web_request(cs, webroot):
                 break # Para que el bucle se rompa cuando se cierra la conexion
 
             lineas = mensaje.split('\r\n') # Dividir el string 
+
             # * Analizar que la línea de solicitud y comprobar está bien formateada según HTTP 1.1
             m = er_linea1.fullmatch(lineas[0])
             if m:
@@ -126,8 +128,9 @@ def process_web_request(cs, webroot):
                     if not er_getopost.fullmatch(m.group('metodo')):
                         procesar_error(cs, 405)
                         continue
-
-                    cabeceras = {} # Dicccionario para las cabeceras
+                    
+                    # Diccionario con las cabeceras y atributos
+                    cabeceras = {}
                     for linea in lineas[1:]:
                         if linea == "":
                             break # Hemos llegado al fin de cabeceras
@@ -143,7 +146,7 @@ def process_web_request(cs, webroot):
                         procesar_error(cs, 400)
                         break # cerrar la conexión
 
-                    # Gestión del POS
+                    # Gestión del POST
                     if metodo == 'POST':
                         # Extraer el cuerpo
                         partes_mensaje = mensaje.split('\r\n\r\n', 1)
@@ -195,8 +198,9 @@ def process_web_request(cs, webroot):
                         continue # No procesar archivo inexistente
 
                     """ * Analizar las cabeceras. Imprimir cada cabecera y su valor. Si la cabecera es Cookie comprobar
-                         el valor de cookie_counter para ver si ha llegado a MAX_ACCESOS. """
+                    el valor de cookie_counter para ver si ha llegado a MAX_ACCESOS. """
                     contador_cookies = process_cookies(cabeceras, cs)
+
                     #   Si se ha llegado a MAX_ACCESOS devolver un Error "403 Forbidden".
                     if contador_cookies > MAX_ACCESOS:
                         procesar_error(cs, 403)
@@ -212,6 +216,7 @@ def process_web_request(cs, webroot):
                         extension = partes[-1] # La extensión es el úñtimo elemento de la lista
                     else:
                         extension = ""
+                        
                     """ * Preparar respuesta con código 200. Construir una respuesta que incluya: la línea de respuesta y
                     las cabeceras Date, Server, Connection, Set-Cookie (para la cookie cookie_counter),
                     Content-Length y Content-Type. """
