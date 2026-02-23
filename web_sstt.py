@@ -33,12 +33,12 @@ logger = logging.getLogger()
 """ Esta función envía datos (data) a través del socket cs
 Devuelve el número de bytes enviados. """
 def enviar_mensaje(cs, data):
-    return cs.send(data.encode('utf-8'))
+    return cs.send(data.encode())
 
 """ Esta función recibe datos a través del socket cs
 Leemos la información que nos llega. recv() devuelve un string con los datos. """
 def recibir_mensaje(cs):
-    return cs.recv(BUFSIZE).decode('utf-8')
+    return cs.recv(BUFSIZE).decode()
 
 # Esta función cierra una conexión activa.
 def cerrar_conexion(cs):
@@ -97,7 +97,7 @@ def process_cookies(headers,  cs):
 Típicamente se seguirá un procedimiento similar al siguiente (aunque el alumno puede modificarlo si lo desea) """
 def process_web_request(cs, webroot):
     er_linea1 = re.compile(r'(?P<metodo>GET|POST|[A-Z]+)\s+(?P<ruta>\/\S*)\s+(?P<version>HTTP\/\d\.\d)')
-    er_cabecera = re.compile(r'(?P<header>.+):(?P<valor>.+)')
+    er_cabecera = re.compile(r'(?P<header>[^:]+):(?P<valor>.+)')
     er_getopost = re.compile(r'GET|POST')
     er_correo = re.compile(r'correo=([^&]+)')
     # * Bucle para esperar hasta que lleguen datos en la red a través del socket cs con select()
@@ -171,7 +171,7 @@ def process_web_request(cs, webroot):
                         fecha_actual = datetime.now()
                         fecha_formateada = fecha_actual.strftime('%Y-%m-%d %H:%M:%S') # El formato del loggin
                         respuesta_post = "HTTP/1.1 200 OK \r\n"
-                        respuesta_post += "Server: Nombre (Ubuntu)\r\n" # TODO cambiar lo de nombre
+                        respuesta_post += "Server: fontanerosvillanueva6493.org (Ubuntu)\r\n" 
                         respuesta_post += "Content-Type: text/html; charset=utf-8\r\n"
                         respuesta_post += "Content-Length: " + str(len(html_post.encode())) + "\r\n"
                         respuesta_post += "Connection: Keep-Alive\r\n\r\n"
@@ -231,7 +231,7 @@ def process_web_request(cs, webroot):
                         respuesta += "Date: " + fecha_formateada + "\r\n"
                         respuesta += "Connection: Keep-Alive\r\n"
                         respuesta += "Keep-Alive: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
-                        respuesta += "Set-Cookie: cookie_counter=" + str(contador_cookies) + "; Max-Age=30 \r\n"
+                        respuesta += "Set-Cookie: cookie_counter_6493=" + str(contador_cookies) + "; Max-Age=30 \r\n"
                         respuesta += "\r\n"
                         
                         # * Leer y enviar el contenido del fichero a retornar en el cuerpo de la respuesta.
