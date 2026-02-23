@@ -33,12 +33,12 @@ logger = logging.getLogger()
 """ Esta función envía datos (data) a través del socket cs
 Devuelve el número de bytes enviados. """
 def enviar_mensaje(cs, data):
-    return cs.send(data.encode())
+    return cs.send(data.encode('utf-8'))
 
 """ Esta función recibe datos a través del socket cs
 Leemos la información que nos llega. recv() devuelve un string con los datos. """
 def recibir_mensaje(cs):
-    return cs.recv(BUFSIZE).decode()
+    return cs.recv(BUFSIZE).decode('utf-8')
 
 # Esta función cierra una conexión activa.
 def cerrar_conexion(cs):
@@ -64,7 +64,7 @@ def procesar_error(cs, codigo):
     respuesta = "HTTP/1.1 " + str(codigo) + " " + mensaje + "\r\n"
     respuesta += "Server: fontanerosvillanueva6493.org (Ubuntu)\r\n"
     respuesta += "Content-Type: text/html; charset=utf-8\r\n"
-    respuesta += "Content-Length: " + str(len(html.encode())) + "\r\n"
+    respuesta += "Content-Length: " + str(len(html.encode('utf-8'))) + "\r\n"
     respuesta += "Date: " + fecha_formateada + "\r\n"
     respuesta += "Connection: close\r\n"    
     respuesta += "\r\n"
@@ -76,7 +76,7 @@ def procesar_error(cs, codigo):
 def process_cookies(headers,  cs):
     # 1. Se analizan las cabeceras en headers para buscar la cabecera Cookie
     er_cookie = re.compile(r'Cookie')
-    er_cookie_counter = re.compile(r'(?P<nombre>cookie_counter)=(?P<valor>\d+)')
+    er_cookie_counter = re.compile(r'(?P<nombre>cookie_counter_6493)=(?P<valor>\d+)')
     for header, valor_header in headers.items(): 
         # 2. Una vez encontrada una cabecera Cookie se comprueba si el valor es cookie_counter
         if er_cookie.fullmatch(header):
@@ -173,7 +173,7 @@ def process_web_request(cs, webroot):
                         respuesta_post = "HTTP/1.1 200 OK \r\n"
                         respuesta_post += "Server: fontanerosvillanueva6493.org (Ubuntu)\r\n" 
                         respuesta_post += "Content-Type: text/html; charset=utf-8\r\n"
-                        respuesta_post += "Content-Length: " + str(len(html_post.encode())) + "\r\n"
+                        respuesta_post += "Content-Length: " + str(len(html_post.encode('utf-8'))) + "\r\n"
                         respuesta_post += "Connection: Keep-Alive\r\n\r\n"
                         respuesta_post += html_post
 
@@ -202,7 +202,7 @@ def process_web_request(cs, webroot):
                     contador_cookies = process_cookies(cabeceras, cs)
 
                     #   Si se ha llegado a MAX_ACCESOS devolver un Error "403 Forbidden".
-                    if contador_cookies > MAX_ACCESOS:
+                    if contador_cookies >= MAX_ACCESOS:
                         procesar_error(cs, 403)
                         continue 
             
