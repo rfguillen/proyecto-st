@@ -62,7 +62,7 @@ def procesar_error(cs, codigo):
     html = "<html><body><h1>Error " + str(codigo) + ": " + mensaje + "</h1> <img src =\"" + direccion_imagen + "\"></body></html>"
 
     respuesta = "HTTP/1.1 " + str(codigo) + " " + mensaje + "\r\n"
-    respuesta += "Server: Nombre (Ubuntu)\r\n"
+    respuesta += "Server: fontanerosvillanueva6493.org (Ubuntu)\r\n"
     respuesta += "Content-Type: text/html; charset=utf-8\r\n"
     respuesta += "Content-Length: " + str(len(html.encode())) + "\r\n"
     respuesta += "Date: " + fecha_formateada + "\r\n"
@@ -139,7 +139,7 @@ def process_web_request(cs, webroot):
                             nombre = m_cabecera.group('header')
                             valor_cabecera = m_cabecera.group('valor')
                             cabeceras[nombre] = valor_cabecera
-                            print(f"{nombre}: {valor_cabecera}")
+                            print(nombre + ": " + valor_cabecera)
 
                     # Verificar Host
                     if 'Host' not in cabeceras:
@@ -225,7 +225,7 @@ def process_web_request(cs, webroot):
                         fecha_formateada = fecha_actual.strftime('%Y-%m-%d %H:%M:%S') # El formato del loggin
                         tipo_extension = filetypes[extension] # Extensión según el diccionario filetypes
                         respuesta = "HTTP/1.1 200 OK\r\n"
-                        respuesta += "Server: Nombre (Ubuntu)\r\n"
+                        respuesta += "Server: fontanerosvillanueva6493.org (Ubuntu)\r\n"
                         respuesta += "Content-Type: " + tipo_extension + "; charset=utf-8\r\n"
                         respuesta += "Content-Length: " + str(tamano) + "\r\n"
                         respuesta += "Date: " + fecha_formateada + "\r\n"
