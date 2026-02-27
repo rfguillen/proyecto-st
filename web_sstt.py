@@ -130,7 +130,7 @@ def process_web_request(cs, webroot):
                 # * Devuelve una lista con los atributos de las cabeceras.
                 # * Comprobar si la versión de HTTP es 1.1
                 if m.group('version') == "HTTP/1.1":
-                    # * Comprobar si es un método GET o POST, si no devolver Error 405 "Method Not Allowed". 
+                    # * Comprobar si es un método GET, si no devolver Error 405 "Method Not Allowed". 
                     metodo = m.group('metodo')
                     if not er_getopost.fullmatch(m.group('metodo')):
                         procesar_error(cs, 405)
@@ -151,49 +151,40 @@ def process_web_request(cs, webroot):
                     # Verificar Host
                     if 'Host' not in cabeceras:
                         procesar_error(cs, 400)
-                        break # cerrar la conexión
+                        break # cerrar la conexión                    
 
-                    # Gestión del POST
-                    if metodo == 'POST':
-                        # Extraer el cuerpo
-                        partes_mensaje = mensaje.split('\r\n\r\n', 1)
-                        if len(partes_mensaje) > 1:
-                            cuerpo = partes_mensaje[1]
-                        else:
-                            cuerpo = ""
-
-                        # Buscar el valor de "correo"
-                        m_correo = er_correo.search(cuerpo)
-                        if m_correo:
-                            correo = m_correo.group(1).replace('%40', '@') # para decodificar la @
-                        else:
-                            correo = ""
-
+                    # * Leer URL y separar parámetros si los hubiera
+                    url_completa = m.group('ruta')
+                    parametros = ""
+                    if '?' in url_completa:
+                        partes_url = url_completa.split('?', 1)
+                        url = partes_url[0] # Guardamos la ruta
+                        parametros = partes_url[1] # GUardamos los parametros
+                    
+                    # Comprobar formulario del correo
+                    m_correo = er_correo.search(parametros)
+                    if m_correo:
+                        correo = m_correo.group(1).replace('%40', '@') # para decodificar la @
                         # Comprobar si es nuestro correo
                         if correo == CORREO_RAFAEL or correo == CORREO_DANIEL:
-                            html_post = "<html><body><h1>El correo es correcto</h1></body></html>"
+                            html_formulario = "<html><body><h1>El correo es correcto</h1></body></html>"
                         else:
-                            html_post = "<html><body><h1>El correo es incorrecto</h1></body></html>"
+                            html_formulario = "<html><body><h1>El correo es incorrecto</h1></body></html>"
 
                         fecha_actual = datetime.now()
                         fecha_formateada = fecha_actual.strftime('%Y-%m-%d %H:%M:%S') # El formato del loggin
-                        respuesta_post = "HTTP/1.1 200 OK \r\n"
-                        respuesta_post += "Server: fontanerosvillanueva6493.org (Ubuntu)\r\n" 
-                        respuesta_post += "Content-Type: text/html; charset=utf-8\r\n"
-                        respuesta_post += "Content-Length: " + str(len(html_post.encode('utf-8'))) + "\r\n"
-                        respuesta_post += "Connection: Keep-Alive\r\n"
-                        respuesta_post += "Keep-Alive: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
-                        respuesta_post += "\r\n"
-                        respuesta_post += html_post
+                        respuesta_formulario = "HTTP/1.1 200 OK \r\n"
+                        respuesta_formulario += "Server: fontanerosvillanueva6493.org (Ubuntu)\r\n" 
+                        respuesta_formulario += "Content-Type: text/html; charset=utf-8\r\n"
+                        respuesta_formulario += "Content-Length: " + str(len(html_formulario.encode('utf-8'))) + "\r\n"
+                        respuesta_formulario += "Connection: Keep-Alive\r\n"
+                        respuesta_formulario += "Keep-Alive: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
+                        respuesta_formulario += "\r\n"
+                        respuesta_formulario += html_formulario
 
-                        enviar_mensaje(cs, respuesta_post)
-                        continue # para que no ejecute lo del get
-
-                    # Gestión del GET
-                    # * Leer URL y eliminar parámetros si los hubiera
-                    url = m.group('ruta')
-                    if '?' in url:
-                        url = url.split('?')[0] # Los parametros vienen despues del ?
+                        enviar_mensaje(cs, respuesta_formulario)
+                        continue # volvemos a escuchar peticiones
+                        
                     # * Comprobar si el recurso solicitado es /, En ese caso el recurso es index.html
                     if url == '/':
                         url = "index.html"
