@@ -47,14 +47,19 @@ def cerrar_conexion(cs):
 def procesar_error(cs, codigo):
     if codigo == 400:
         mensaje = "Bad Request"
+        conexion = "close"
     elif codigo == 403:
         mensaje = "Forbidden"
+        conexion = "Keep-Alive"
     elif codigo == 404:
         mensaje = "Not Found"
+        conexion = "Keep-Alive"
     elif codigo == 405:
         mensaje = "Method Not Allowed"
+        conexion = "Keep-Alive"
     elif codigo == 505:
         mensaje = "HTTP Version Not Supported"
+        conexion = "close"
 
     direccion_imagen = str(codigo) + ".jpg" # Para la imagen del error
     fecha_actual = datetime.now()
@@ -66,7 +71,7 @@ def procesar_error(cs, codigo):
     respuesta += "Content-Type: text/html; charset=utf-8\r\n"
     respuesta += "Content-Length: " + str(len(html.encode('utf-8'))) + "\r\n"
     respuesta += "Date: " + fecha_formateada + "\r\n"
-    respuesta += "Connection: close\r\n"    
+    respuesta += "Connection: " + conexion + "\r\n"    
     respuesta += "\r\n"
     respuesta += html
 
@@ -251,17 +256,17 @@ def process_web_request(cs, webroot):
                             # * Cuando ya no hay más información para leer, se corta el bucle                        
                         f.close()
                     else:
-                        # Error "Not Found"
+                        # Error "Not Found" cerramos la conexión
                         procesar_error(cs, 404)
-                        continue
+                        break
                 else:
                     # Error "HTTP Version Not Supported"
                     procesar_error(cs, 505)
                     continue
             else:
-                # Error "Bad Request"
+                # Error "Bad Request" se cierra la conexión
                 procesar_error(cs, 400)
-                continue
+                break
         # * Si es por timeout, se cierra el socket tras el período de persistencia.
         # * NOTA: Si hay algún error, enviar una respuesta de error con una pequeña página HTML que informe del error.
     # Cerrar la conexión por timeout
