@@ -155,6 +155,7 @@ def process_web_request(cs, webroot):
 
                     # * Leer URL y separar parámetros si los hubiera
                     url_completa = m.group('ruta')
+                    url = url_completa # Por si no hubiera ?
                     parametros = ""
                     if '?' in url_completa:
                         partes_url = url_completa.split('?', 1)
