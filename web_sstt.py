@@ -182,8 +182,8 @@ def process_web_request(cs, webroot):
                         respuesta_post += "Content-Type: text/html; charset=utf-8\r\n"
                         respuesta_post += "Content-Length: " + str(len(html_post.encode('utf-8'))) + "\r\n"
                         respuesta_post += "Connection: Keep-Alive\r\n\r\n"
-                        respuesta += "Keep-Alive: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
-                        respuesta += "\r\n"
+                        respuesta_post += "Keep-Alive: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
+                        respuesta_post += "\r\n"
                         respuesta_post += html_post
 
                         enviar_mensaje(cs, respuesta_post)
