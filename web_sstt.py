@@ -163,7 +163,7 @@ def process_web_request(cs, webroot):
                         # Buscar el valor de "correo"
                         m_correo = er_correo.search(cuerpo)
                         if m_correo:
-                            correo = m_correo.group(1).replace('$40', '@') # para decodificar la @
+                            correo = m_correo.group(1).replace('%40', '@') # para decodificar la @
                         else:
                             correo = ""
 
