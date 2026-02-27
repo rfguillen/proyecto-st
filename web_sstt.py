@@ -71,7 +71,9 @@ def procesar_error(cs, codigo):
     respuesta += "Content-Type: text/html; charset=utf-8\r\n"
     respuesta += "Content-Length: " + str(len(html.encode('utf-8'))) + "\r\n"
     respuesta += "Date: " + fecha_formateada + "\r\n"
-    respuesta += "Connection: " + conexion + "\r\n"    
+    respuesta += "Connection: " + conexion + "\r\n"  
+    if conexion == "Keep-Alive": 
+        respuesta += "Keep-Alive: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
     respuesta += "\r\n"
     respuesta += html
 
@@ -180,6 +182,8 @@ def process_web_request(cs, webroot):
                         respuesta_post += "Content-Type: text/html; charset=utf-8\r\n"
                         respuesta_post += "Content-Length: " + str(len(html_post.encode('utf-8'))) + "\r\n"
                         respuesta_post += "Connection: Keep-Alive\r\n\r\n"
+                        respuesta += "Keep-Alive: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
+                        respuesta += "\r\n"
                         respuesta_post += html_post
 
                         enviar_mensaje(cs, respuesta_post)
@@ -256,13 +260,13 @@ def process_web_request(cs, webroot):
                             # * Cuando ya no hay más información para leer, se corta el bucle                        
                         f.close()
                     else:
-                        # Error "Not Found" cerramos la conexión
+                        # Error "Not Found" 
                         procesar_error(cs, 404)
                         break
                 else:
                     # Error "HTTP Version Not Supported"
                     procesar_error(cs, 505)
-                    continue
+                    break
             else:
                 # Error "Bad Request" se cierra la conexión
                 procesar_error(cs, 400)
