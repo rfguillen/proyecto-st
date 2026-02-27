@@ -104,7 +104,7 @@ def process_web_request(cs, webroot):
     er_linea1 = re.compile(r'(?P<metodo>GET|POST|[A-Z]+)\s+(?P<ruta>\/\S*)\s+(?P<version>HTTP\/\d\.\d)')
     er_cabecera = re.compile(r'(?P<header>[^:]+):(?P<valor>.+)')
     er_getopost = re.compile(r'GET|POST')
-    er_correo = re.compile(r'correo=([^&]+)')
+    er_correo = re.compile(r'(?i)correo=([^&]+)') # (?i) es para que ignore mayuscula o minuscula
     # * Bucle para esperar hasta que lleguen datos en la red a través del socket cs con select()
     while True:
         """ * Se comprueba si hay que cerrar la conexión por exceder TIMEOUT_CONNECTION segundos
@@ -163,7 +163,7 @@ def process_web_request(cs, webroot):
                         # Buscar el valor de "correo"
                         m_correo = er_correo.search(cuerpo)
                         if m_correo:
-                            correo = m_correo.group(1)
+                            correo = m_correo.group(1).replace('$40', '@') # para decodificar la @
                         else:
                             correo = ""
 
