@@ -262,7 +262,7 @@ def process_web_request(cs, webroot):
                     else:
                         # Error "Not Found" 
                         procesar_error(cs, 404)
-                        break
+                        continue
                 else:
                     # Error "HTTP Version Not Supported"
                     procesar_error(cs, 505)
