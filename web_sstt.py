@@ -15,7 +15,7 @@ import logging      # Para imprimir logs
 
 
 BUFSIZE = 8192 # Tamaño máximo del buffer que se puede utilizar
-TIMEOUT_CONNECTION = 20 # Timout para la conexión persistente
+TIMEOUT_CONNECTION = 32 # Timout para la conexión persistente: 6+4+9+3+10=32
 MAX_ACCESOS = 10
 CORREO_RAFAEL = "rafael.guilleng@um.es"
 CORREO_DANIEL = "daniel.f.a@um.es"
@@ -43,7 +43,8 @@ def recibir_mensaje(cs):
 # Esta función cierra una conexión activa.
 def cerrar_conexion(cs):
     cs.close()
-
+""" Esta función gestiona el envío de códigos de error HTTP al cliente
+Decide si la conexión se cierra (errores 400 y 505) o se mantiene viva (resto de errores)"""
 def procesar_error(cs, codigo):
     if codigo == 400:
         mensaje = "Bad Request"
@@ -66,12 +67,15 @@ def procesar_error(cs, codigo):
     fecha_formateada = fecha_actual.strftime('%Y-%m-%d %H:%M:%S') # El formato del loggin    
     html = "<html><body><h1>Error " + str(codigo) + ": " + mensaje + "</h1> <img src =\"" + direccion_imagen + "\"></body></html>"
 
+    # Construimos la respuesta
     respuesta = "HTTP/1.1 " + str(codigo) + " " + mensaje + "\r\n"
     respuesta += "Server: fontanerosvillanueva6493.org (Ubuntu)\r\n"
     respuesta += "Content-Type: text/html; charset=utf-8\r\n"
     respuesta += "Content-Length: " + str(len(html.encode('utf-8'))) + "\r\n"
     respuesta += "Date: " + fecha_formateada + "\r\n"
     respuesta += "Connection: " + conexion + "\r\n"  
+
+    # Si la conexión se mantiene, informamos al cliente
     if conexion == "Keep-Alive": 
         respuesta += "Keep-Alive: timeout=" + str(TIMEOUT_CONNECTION) + ", max=100\r\n"
     respuesta += "\r\n"
@@ -115,7 +119,7 @@ def process_web_request(cs, webroot):
         if not rsublist: # Si no hay leibles significa que saltó el timeout
             break
 
-        # * Si no es por timeout y hay datos en el socket cs.
+        # * Si no es por timeout y hay datos en el socket cs:
         else:
             # * Leer los datos con recv.
             mensaje = recibir_mensaje(cs)
@@ -127,10 +131,9 @@ def process_web_request(cs, webroot):
             # * Analizar que la línea de solicitud y comprobar está bien formateada según HTTP 1.1
             m = er_linea1.fullmatch(lineas[0])
             if m:
-                # * Devuelve una lista con los atributos de las cabeceras.
                 # * Comprobar si la versión de HTTP es 1.1
                 if m.group('version') == "HTTP/1.1":
-                    # * Comprobar si es un método GET, si no devolver Error 405 "Method Not Allowed". 
+                    # * Comprobar si es un método GET o POST, si no devolver Error 405 "Method Not Allowed". 
                     metodo = m.group('metodo')
                     if not er_getopost.fullmatch(m.group('metodo')):
                         procesar_error(cs, 405)
@@ -146,7 +149,7 @@ def process_web_request(cs, webroot):
                             nombre = m_cabecera.group('header')
                             valor_cabecera = m_cabecera.group('valor')
                             cabeceras[nombre] = valor_cabecera
-                            print(nombre + ": " + valor_cabecera)
+                            print(nombre + ": " + valor_cabecera) # Imprimir las cabeceras
 
                     # Verificar Host
                     if 'Host' not in cabeceras:
@@ -155,7 +158,7 @@ def process_web_request(cs, webroot):
 
                     # * Leer URL y separar parámetros si los hubiera
                     url_completa = m.group('ruta')
-                    url = url_completa # Por si no hubiera ?
+                    url = url_completa # Por si no hubiera parametros
                     parametros = ""
                     if '?' in url_completa:
                         partes_url = url_completa.split('?', 1)
@@ -174,6 +177,7 @@ def process_web_request(cs, webroot):
 
                         fecha_actual = datetime.now()
                         fecha_formateada = fecha_actual.strftime('%Y-%m-%d %H:%M:%S') # El formato del loggin
+
                         respuesta_formulario = "HTTP/1.1 200 OK \r\n"
                         respuesta_formulario += "Server: fontanerosvillanueva6493.org (Ubuntu)\r\n" 
                         respuesta_formulario += "Content-Type: text/html; charset=utf-8\r\n"
@@ -265,7 +269,7 @@ def process_web_request(cs, webroot):
                 break
         # * Si es por timeout, se cierra el socket tras el período de persistencia.
         # * NOTA: Si hay algún error, enviar una respuesta de error con una pequeña página HTML que informe del error.
-    # Cerrar la conexión por timeout
+    # Cerrar la conexión por timeout o errores 400/505
     cerrar_conexion(cs)
 
 
