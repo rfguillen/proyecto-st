@@ -38,14 +38,7 @@ def enviar_mensaje(cs, data):
 """ Esta función recibe datos a través del socket cs
 Leemos la información que nos llega. recv() devuelve un string con los datos. """
 def recibir_mensaje(cs):
-    buffer = ""
-
-    while "\r\n\r\n" not in buffer:
-        datos = cs.recv(BUFSIZE)
-        if not datos:
-            break
-        buffer += datos.decode('utf-8')
-        return buffer
+    return cs.recv(BUFSIZE).decode('utf-8')
 
 # Esta función cierra una conexión activa.
 def cerrar_conexion(cs):
@@ -118,6 +111,10 @@ def process_web_request(cs, webroot):
     er_cabecera = re.compile(r'(?P<header>[^:]+):(?P<valor>.+)')
     er_getopost = re.compile(r'GET|POST')
     er_correo = re.compile(r'(?i)correo=([^&]+)') # (?i) es para que ignore mayuscula o minuscula
+
+    # Buffer temporal
+    mensaje_acumulado = ""
+
     # * Bucle para esperar hasta que lleguen datos en la red a través del socket cs con select()
     while True:
         """ * Se comprueba si hay que cerrar la conexión por exceder TIMEOUT_CONNECTION segundos
@@ -133,7 +130,23 @@ def process_web_request(cs, webroot):
             if not mensaje:
                 break # Para que el bucle se rompa cuando se cierra la conexion
 
-            lineas = mensaje.split('\r\n') # Dividir el string 
+            mensaje_acumulado += mensaje
+
+            # Comprobamos si la petición HTTP está completa (tiene la línea en blanco)
+            if "\r\n\r\n" not in mensaje_acumulado:
+                continue # si no está completa, esperamos datos
+
+            # Separamos la petición
+            partes_mensaje = mensaje_acumulado.split("\r\n\r\n", 1)
+            peticion_actual = partes_mensaje[0]
+
+            # Guardamos lo demás por si es de una siguiente petición
+            if len(partes_mensaje) > 1:
+                mensaje_acumulado = partes_mensaje[1]
+            else:
+                mensaje_acumulado = ""
+
+            lineas = peticion_actual.split('\r\n') # Dividir el string
 
             # * Analizar que la línea de solicitud y comprobar está bien formateada según HTTP 1.1
             m = er_linea1.fullmatch(lineas[0])
